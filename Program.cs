@@ -58,7 +58,7 @@ builder.Services.AddSwaggerGen( c=>{
                 Type = ReferenceType.SecurityScheme,
                 Id = "Bearer"
             },
-            Scheme = "outh2",
+            Scheme = "oauth2",
             Name = "Bearer",
             In = ParameterLocation.Header,
         },

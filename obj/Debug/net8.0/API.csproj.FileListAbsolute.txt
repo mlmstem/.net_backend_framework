@@ -139,3 +139,4 @@
 /Users/sbchen/Desktop/Angular .Net/API/obj/Debug/net8.0/API.pdb
 /Users/sbchen/Desktop/Angular .Net/API/obj/Debug/net8.0/API.genruntimeconfig.cache
 /Users/sbchen/Desktop/Angular .Net/API/obj/Debug/net8.0/ref/API.dll
+/Users/sbchen/Desktop/Angular .Net/API/obj/Debug/net8.0/API.sourcelink.json

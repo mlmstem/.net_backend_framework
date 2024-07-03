@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace API.Controllers
 {
-
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     //api/account
@@ -35,7 +35,7 @@ namespace API.Controllers
 
 
         //api/account/register
-        
+      [AllowAnonymous]
       [HttpPost("register")]
 
       public async Task<ActionResult <string>> Register (RegisterDto registerDto)
@@ -72,9 +72,11 @@ namespace API.Controllers
         Message = "Account Created Successfully!"
     });
 
-
       }
+      
 
+
+      [AllowAnonymous]
       [HttpPost("login")]
 
       public async Task<ActionResult<AuthResponseDto>> Login(LoginDto loginDto){
@@ -169,7 +171,7 @@ namespace API.Controllers
             Id = user.Id,
             Email = user.Email,
             FullName = user.FullName,
-            Roles = [..await _userManager.GetRolesAsync(user)],
+             Roles = [..await _userManager.GetRolesAsync(user)],
             PhoneNumber = user.PhoneNumber,
             PhoneNumberConfirmed = user.PhoneNumberConfirmed,
             AccessFailedCount = user.AccessFailedCount,
@@ -179,7 +181,7 @@ namespace API.Controllers
       }
 
 
-
+    [Authorize]
     [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDetailDto>>> GetUsers()
         {
