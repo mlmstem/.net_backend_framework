@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.ObjectPool;
 using Microsoft.IdentityModel.Tokens;
 
 namespace API.Controllers
@@ -20,6 +21,7 @@ namespace API.Controllers
       private readonly UserManager<AppUser> _userManager;
       private readonly RoleManager <IdentityRole> _roleManager;
 
+
       private readonly IConfiguration _configuration;
 
       public AccountController(UserManager<AppUser> userManager,
@@ -30,6 +32,7 @@ namespace API.Controllers
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
+
             
         }
 
@@ -50,6 +53,7 @@ namespace API.Controllers
             Email = registerDto.Email,
             FullName = registerDto.FullName,
             UserName = registerDto.Email,
+            PhoneNumber = registerDto.PhoneNumber,
         };
 
         var result = await _userManager.CreateAsync(user, registerDto.Password);
@@ -104,7 +108,7 @@ namespace API.Controllers
             });
         }
 
-        var token = GenerateToken(user);
+        var token = await GenerateToken(user);
 
         return Ok(new AuthResponseDto{
             Token = token,
@@ -113,46 +117,47 @@ namespace API.Controllers
         });
       }
 
-      private string GenerateToken(AppUser user){
+      private async Task<string> GenerateToken(AppUser user)
+    {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_configuration.GetSection("JWTSetting").GetSection("securityKey").Value!);
 
-        var roles = _userManager.GetRolesAsync(user).Result;
+        var roles = await _userManager.GetRolesAsync(user); // Await async call
 
-        List<Claim> claims = 
-            [
-                new (JwtRegisteredClaimNames.Email,user.Email??""),
-                new (JwtRegisteredClaimNames.Name,user.FullName??""),
-                new (JwtRegisteredClaimNames.NameId,user.Id ??""),
-                new (JwtRegisteredClaimNames.Aud,
-                _configuration.GetSection("JWTSetting").GetSection("validAudience").Value!),
-                new (JwtRegisteredClaimNames.Iss,_configuration.GetSection("JWTSetting").GetSection("validIssuer").Value!)
-            ];
+        List<Claim> claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
+            new Claim(JwtRegisteredClaimNames.Name, user.FullName ?? ""),
+            new Claim(JwtRegisteredClaimNames.NameId, user.Id ?? ""),
+            new Claim(JwtRegisteredClaimNames.Aud, _configuration.GetSection("JWTSetting").GetSection("validAudience").Value!),
+            new Claim(JwtRegisteredClaimNames.Iss, _configuration.GetSection("JWTSetting").GetSection("validIssuer").Value!)
+        };
 
-            foreach(var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role,role));
-            }
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddDays(1),
-                SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key),
-                    SecurityAlgorithms.HmacSha256
-                )
-            };
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddDays(1),
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha256
+            )
+        };
 
-            var token = tokenHandler.CreateToken(tokenDescriptor);
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return tokenHandler.WriteToken(token);
+    }
 
-            return tokenHandler.WriteToken(token);
 
 
-      }
+
 
       //api/account/detail
-
+      
       [Authorize]
       [HttpGet("detail")]
 
@@ -181,23 +186,104 @@ namespace API.Controllers
       }
 
 
-    [Authorize]
-    [HttpGet]
+        [Authorize]
+        [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDetailDto>>> GetUsers()
-        {
-            var users = await _userManager.Users.Select(u=> new UserDetailDto{
-                Id = u.Id,
-                Email=u.Email,
-                FullName=u.FullName,
-                Roles=_userManager.GetRolesAsync(u).Result.ToArray()
-            }).ToListAsync();
+            {
+            var users = await _userManager.Users.ToListAsync();
+            var userDetails = new List<UserDetailDto>();
 
-            return Ok(users);
+            foreach (var user in users)
+                {
+                var roles = await _userManager.GetRolesAsync(user);
+                userDetails.Add(new UserDetailDto
+                {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = user.FullName,
+                PhoneNumber = user.PhoneNumber,
+                Roles = roles.ToArray()
+                });
+                    }
+
+                return Ok(userDetails);
+                }
+
+
+
+    [Authorize]
+    [HttpPost("update")]
+    public async Task<ActionResult> UpdateUser([FromBody] UpdateUserDetailDto updateUserDto)
+        {
+        var user = await _userManager.FindByIdAsync(updateUserDto.UserId);
+            
+        if (user == null)
+        {
+            return NotFound(new AuthResponseDto
+            {
+                IsSuccess = false,
+                Message = "User not found"
+            });
+            }
+
+        
+        Console.WriteLine($"Updating User: {updateUserDto.UserId}, Email: {updateUserDto.Email}, FullName: {updateUserDto.FullName}, PhoneNumber: {updateUserDto.PhoneNumber}");
+
+            // Update fields if they are provided
+        if (!string.IsNullOrEmpty(updateUserDto.Email))
+        {
+            user.Email = updateUserDto.Email;
+            user.UserName = updateUserDto.Email;
         }
 
+        if (!string.IsNullOrEmpty(updateUserDto.FullName))
+            {
+            user.FullName = updateUserDto.FullName;
+            }
 
+        if (!string.IsNullOrEmpty(updateUserDto.PhoneNumber))
+            {
+            user.PhoneNumber = updateUserDto.PhoneNumber;
+            }
 
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            {
+            return BadRequest(updateResult.Errors);
+            }
 
+        if (updateUserDto.Roles != null && updateUserDto.Roles.Any())
+            {
+            var validRoles = updateUserDto.Roles.Where(role => !string.IsNullOrEmpty(role)).ToList();
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var rolesToRemove = currentRoles.Except(validRoles).ToList();
+            var rolesToAdd = validRoles.Except(currentRoles).ToList();
+
+                if (rolesToRemove.Any())
+                {
+                var removeResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+                if (!removeResult.Succeeded)
+                {
+                    return BadRequest(removeResult.Errors);
+                    }
+                }
+
+                if (rolesToAdd.Any())
+                {
+                var addResult = await _userManager.AddToRolesAsync(user, rolesToAdd);
+                if (!addResult.Succeeded)
+                    {
+                    return BadRequest(addResult.Errors);
+                    }
+                }
+            }
+
+            return Ok(new AuthResponseDto
+            {
+                IsSuccess = true,
+                Message = "User details updated successfully"
+            });
+        }
 
     }
 }

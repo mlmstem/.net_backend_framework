@@ -8,9 +8,6 @@ namespace API.Dtos
         public string? Name {get; set;}
 
         public int TotalUsers{get; set;}
-
-       
-
         
     }
 }

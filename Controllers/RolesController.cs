@@ -49,21 +49,36 @@ namespace API.Controllers
             return BadRequest("Role creation failed.");
             
         }
-
+        
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RoleResponseDto>>> GetRoles()
         {
             
-
             // list of roles with total users in each role 
 
-            var roles = await _roleManager.Roles.Select(r=>new RoleResponseDto{
-                Id = r.Id,
-                Name = r.Name,
-                TotalUsers = _userManager.GetUsersInRoleAsync(r.Name!).Result.Count
-            }).ToListAsync();
+             // Fetch all roles first
+            var roles = await _roleManager.Roles.ToListAsync();
 
-            return Ok(roles);
+            // Create a list to hold the role response DTOs
+            var roleResponseDtos = new List<RoleResponseDto>();
+
+            // Loop through each role and fetch the user count asynchronously
+            foreach (var role in roles)
+            {
+                var userCount = await _userManager.GetUsersInRoleAsync(role.Name!);
+
+                var roleResponseDto = new RoleResponseDto
+                {
+                    Id = role.Id,
+                    Name = role.Name,
+                    TotalUsers = userCount.Count
+                };
+
+                roleResponseDtos.Add(roleResponseDto);
+            }
+
+            return Ok(roleResponseDtos);
         }
 
         [HttpDelete("{id}")]
@@ -117,6 +132,13 @@ namespace API.Controllers
 
         }
 
+    }
+    public static class TaskExtensions
+    {
+        public static Task<T[]> WhenAll<T>(this IEnumerable<Task<T>> tasks)
+        {
+            return Task.WhenAll(tasks);
+        }
     }
     
 }

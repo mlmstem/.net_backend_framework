@@ -12,10 +12,22 @@ var builder = WebApplication.CreateBuilder(args);
 var JWTSetting = builder.Configuration.GetSection("JWTSetting");
 
 // Add services to the container.
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite("Data Source = auth.db"));
+// builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite("Data Source = auth.db"));
+// builder.Services.AddIdentity<AppUser, IdentityRole>()
+// .AddEntityFrameworkStores<AppDbContext>()
+// .AddDefaultTokenProviders();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), 
+                     new MySqlServerVersion(new Version(8, 0, 23))));
+
+
 builder.Services.AddIdentity<AppUser, IdentityRole>()
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
+
+
+
 
 builder.Services.AddAuthentication (opt => {
     opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -78,6 +90,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors(options =>{
+    options.AllowAnyHeader();
+    options.AllowAnyMethod();
+    options.AllowAnyOrigin();
+});
 
 app.UseAuthentication();
 

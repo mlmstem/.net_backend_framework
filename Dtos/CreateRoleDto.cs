@@ -6,9 +6,7 @@ namespace API.Dtos
     {
         [Required(ErrorMessage = "Role Name is required. ")]
         public string RoleName { get; set; } = null;
-
-       
-
+        
         
     }
 }

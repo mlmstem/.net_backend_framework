@@ -17,5 +17,7 @@ namespace API.Dtos
 
         public List <string>? Roles{get; set;}
 
+        public string? PhoneNumber {get; set;}
+
     }
 }
