@@ -190,8 +190,6 @@ namespace API.Controllers
             return NoContent();
         }
 
-
-
         // Update a task
         // [HttpPut("{id}")]
         // public async Task<IActionResult> UpdateTask(int id, UpdateTaskDto updateTaskDto)

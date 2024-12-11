@@ -153,9 +153,6 @@ namespace API.Controllers
     }
 
 
-
-
-
       //api/account/detail
       
       [Authorize]

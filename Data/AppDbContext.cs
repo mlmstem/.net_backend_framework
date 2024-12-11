@@ -12,11 +12,21 @@ namespace API.Data{
         public DbSet<task> Tasks { get; set; }
         public DbSet<TaskUser> TaskUsers { get; set; }
 
+        public DbSet<Post> Posts{get; set;}
+
         
       protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Configure value object for Comments
+            modelBuilder.Entity<Post>()
+                .OwnsMany(p => p.Comments, a =>
+                {
+                    a.WithOwner().HasForeignKey("PostId"); // Link comments to the owning post
+                    a.Property<int>("Id"); // Add a shadow primary key for the embedded collection
+                    a.HasKey("Id"); // Make it the key
+                });
             // Configure many-to-many relationship using the TaskUser entity
             modelBuilder.Entity<TaskUser>()
                 .HasKey(tu => new { tu.TaskId, tu.UserId });
